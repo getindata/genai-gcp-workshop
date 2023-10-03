@@ -1,16 +1,4 @@
-"""
-To install dependencies:
-    poetry install
-
-To authenticate locally:
-    gcloud auth application-default login
-    gcloud config set project datamass-2023-genai
-    gcloud auth application-default set-quota-project datamass-2023-genai
-
-To run app:
-    streamlit run app.py
-"""
-
+"""Chat interface to indexed documents."""
 
 # 0. Imports
 
@@ -105,7 +93,7 @@ qa = RetrievalQA.from_chain_type(
 # 3. Streamlit Chat
 
 # App title
-st.title("LLM Interface to indexed documents")
+st.title("LLM interface to indexed documents")
 
 # Generate empty lists for generated and past.
 # `generated` stores generated responses
