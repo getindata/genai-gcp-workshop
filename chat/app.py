@@ -1,32 +1,42 @@
-# To authenticate locally, run:
-# gcloud auth application-default login
-# gcloud config set project datamass-2023-genai
-# gcloud auth application-default set-quota-project datamass-2023-genai
+"""
+To install dependencies:
+    poetry install
 
-from app_utils.app_utils import (
-    download_utils,
-    rate_limit,
-    CustomVertexAIEmbeddings
-)
-download_utils("utils")
+To authenticate locally:
+    gcloud auth application-default login
+    gcloud config set project datamass-2023-genai
+    gcloud auth application-default set-quota-project datamass-2023-genai
 
-import json
-import textwrap
-import uuid
-import numpy as np
+To run app:
+    streamlit run app.py
+"""
+
+
+# 0. Imports
+
+from importlib import import_module
+
+import streamlit as st
 import vertexai
-from google.cloud import aiplatform
-import langchain
 from langchain.chains import RetrievalQA
-from langchain.document_loaders import GCSDirectoryLoader
 from langchain.llms import VertexAI
 from langchain.prompts import PromptTemplate
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from utils.matching_engine import MatchingEngine
-from utils.matching_engine_utils import MatchingEngineUtils
-import streamlit as st
 from streamlit_chat import message
 
+from app_utils.app_utils import (
+    CustomVertexAIEmbeddings,
+    download_utils,
+    get_response,
+    template,
+)
+
+download_utils("utils")
+MatchingEngine = getattr(import_module("utils.matching_engine"), "MatchingEngine")
+MatchingEngineUtils = getattr(
+    import_module("utils.matching_engine_utils"), "MatchingEngineUtils"
+)
+
+# 1. Parameters
 
 PROJECT_ID = "datamass-2023-genai"  # @param {type:"string"}
 REGION = "us-central1"  # @param {type:"string"}
@@ -38,6 +48,8 @@ ME_EMBEDDING_DIR = f"{PROJECT_ID}-me-bucket"  # @param {type:"string"}
 ME_DIMENSIONS = 768  # when using Vertex PaLM Embedding
 NUMBER_OF_RESULTS = 10
 SEARCH_DISTANCE_THRESHOLD = 0.6
+
+# 2. Object initialization
 
 vertexai.init(project=PROJECT_ID, location=REGION)
 
@@ -76,23 +88,6 @@ retriever = me.as_retriever(
     },
 )
 
-template = """SYSTEM: You are an intelligent assistant helping the users with their questions on research papers.
-
-Question: {question}
-
-Strictly Use ONLY the following pieces of context to answer the question at the end. Think step-by-step and then answer.
-
-Do not try to make up an answer:
- - If the answer to the question cannot be determined from the context alone, say "I cannot determine the answer to that."
- - If the context is empty, just say "I do not know the answer to that."
-
-=============
-{context}
-=============
-
-Question: {question}
-Helpful Answer:"""
-
 qa = RetrievalQA.from_chain_type(
     llm=llm,
     chain_type="stuff",
@@ -107,19 +102,7 @@ qa = RetrievalQA.from_chain_type(
     },
 )
 
-qa.combine_documents_chain.verbose = True
-qa.combine_documents_chain.llm_chain.verbose = True
-qa.combine_documents_chain.llm_chain.llm.verbose = True
-
-
-def get_response(query, qa=qa, k=NUMBER_OF_RESULTS, search_distance=SEARCH_DISTANCE_THRESHOLD):
-    qa.retriever.search_kwargs["search_distance"] = search_distance
-    qa.retriever.search_kwargs["k"] = k
-    result = qa({"query": query})
-
-    return result["result"]
-
-### Streamlit Chat
+# 3. Streamlit Chat
 
 # App title
 st.title("LLM Interface to indexed documents")
@@ -145,7 +128,9 @@ with input_container:
 # Conditional display of generated responses as a function of user provided prompts
 with response_container:
     if query:
-        response = get_response(query)
+        response = get_response(
+            query, qa=qa, k=NUMBER_OF_RESULTS, search_distance=SEARCH_DISTANCE_THRESHOLD
+        )
         st.session_state.past.append(query)
         st.session_state.generated.append(response)
 
