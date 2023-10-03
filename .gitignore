@@ -1,1 +1,4 @@
 chat/utils
+.idea
+labs/notebooks/.ipynb_checkpoints/
+
