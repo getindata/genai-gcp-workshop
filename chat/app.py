@@ -26,16 +26,32 @@ MatchingEngineUtils = getattr(
 
 # 1. Parameters
 
-PROJECT_ID = "datamass-2023-genai"  # @param {type:"string"}
-REGION = "us-central1"  # @param {type:"string"}
-EMBEDDING_QPM = 100
-EMBEDDING_NUM_BATCH = 5
+# Fixed
+PROJECT_ID = "datamass-2023-genai"
+REGION = "us-central1"
 ME_REGION = "us-central1"
-ME_INDEX_NAME = f"{PROJECT_ID}-me-index"  # @param {type:"string"}
-ME_EMBEDDING_DIR = f"{PROJECT_ID}-me-bucket"  # @param {type:"string"}
-ME_DIMENSIONS = 768  # when using Vertex PaLM Embedding
-NUMBER_OF_RESULTS = 10
-SEARCH_DISTANCE_THRESHOLD = 0.6
+ME_INDEX_NAME = f"{PROJECT_ID}-me-index"
+ME_EMBEDDING_DIR = f"{PROJECT_ID}-me-bucket"
+
+# Controlled with Streamlit app
+with st.sidebar:
+    st.write("**Vector search parameters:**")
+    EMBEDDING_QPM = st.number_input(
+        "Requests per minute (`EMBEDDING_QPM`)", 10, 1000, 100, 10
+    )
+    EMBEDDING_NUM_BATCH = st.number_input(
+        "Number of instances per batch (`EMBEDDING_NUM_BATCH`)", 1, 50, 5, 1
+    )
+    NUMBER_OF_RESULTS = st.number_input(
+        "Number of returned results (`NUMBER_OF_RESULTS`)", 1, 30, 10, 1
+    )
+    SEARCH_DISTANCE_THRESHOLD = st.number_input(
+        "Search distance threshold (`SEARCH_DISTANCE_THRESHOLD`)", 0.01, 1.0, 0.6, 0.01
+    )
+    st.write("**LLM parameters:**")
+    TEMPERATURE = st.number_input("Temperature (`TEMPERATURE`)", 0.0, 1.0, 0.2, 0.01)
+    TOP_P = st.number_input("Top p (`TOP_P`)", 0.01, 1.0, 0.8, 0.01)
+    TOP_K = st.number_input("Top k (`TOP_K`)", 1, 40, 40, 1)
 
 # 2. Object initialization
 
@@ -44,9 +60,9 @@ vertexai.init(project=PROJECT_ID, location=REGION)
 llm = VertexAI(
     model_name="text-bison@001",
     max_output_tokens=1024,
-    temperature=0.2,
-    top_p=0.8,
-    top_k=40,
+    temperature=TEMPERATURE,
+    top_p=TOP_P,
+    top_k=TOP_K,
     verbose=True,
 )
 
@@ -90,6 +106,10 @@ qa = RetrievalQA.from_chain_type(
     },
 )
 
+qa.combine_documents_chain.verbose = True
+qa.combine_documents_chain.llm_chain.verbose = True
+qa.combine_documents_chain.llm_chain.llm.verbose = True
+
 # 3. Streamlit Chat
 
 # App title
@@ -111,7 +131,7 @@ input_container = st.container()
 
 # User input
 with input_container:
-    query = st.text_input("You: ", "", key="input")
+    query = st.chat_input("", key="input")
 
 # Conditional display of generated responses as a function of user provided prompts
 with response_container:
